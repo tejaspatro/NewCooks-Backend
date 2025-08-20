@@ -1,0 +1,22 @@
+package com.NewCooks.NewCooks.DTO;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class RecipeResponseDTO
+{
+    private Long recipeId;
+    private String title;
+    private String description;
+    private List<String> Ingredients;
+    private List<String> Utensils;
+    private String NutritionInfo;
+    private ChefDTO chef;
+    private List<String> instructions;
+}
