@@ -55,5 +55,12 @@ public class UserController {
         userRepository.save(user);
         return ResponseEntity.ok("Account activated successfully");
     }
+
+    @GetMapping("/test")
+    public String test()
+    {
+        return "test successful";
+    }
+
 }
 

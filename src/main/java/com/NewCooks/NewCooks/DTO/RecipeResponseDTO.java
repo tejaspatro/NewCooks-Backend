@@ -9,8 +9,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class RecipeResponseDTO
-{
+public class RecipeResponseDTO {
     private Long recipeId;
     private String title;
     private String description;
@@ -19,4 +18,8 @@ public class RecipeResponseDTO
     private String NutritionInfo;
     private ChefDTO chef;
     private List<String> instructions;
+
+    // New fields
+    private String thumbnail;
+    private List<String> images;
 }

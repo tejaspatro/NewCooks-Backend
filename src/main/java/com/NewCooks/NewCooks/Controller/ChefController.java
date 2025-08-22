@@ -9,8 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/chef")
@@ -34,7 +34,7 @@ public class ChefController
 
 
     @PostMapping("/{chefId}/recipes")
-    public ResponseEntity<?> addRecipe(@PathVariable Long chefId, @RequestBody RecipeDTO dto) {
+    public ResponseEntity<?> addRecipe(@PathVariable Long chefId, @RequestBody RecipeDTO dto){
         if (!isAuthorized(chefId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You are not authorized to add recipes for this chef.");
         }
@@ -90,5 +90,31 @@ public class ChefController
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    @PostMapping("/{chefId}/recipes/{recipeId}/images/delete")
+    public ResponseEntity<?> deleteRecipeImage(
+            @PathVariable Long chefId,
+            @PathVariable Long recipeId,
+            @RequestBody Map<String, String> body
+    ) {
+        if (!isAuthorized(chefId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You are not authorized to delete images for this chef.");
+        }
+
+        String url = body.get("url");
+        if (url == null || url.isEmpty()) {
+            return ResponseEntity.badRequest().body("Image URL is required");
+        }
+
+        recipeService.removeImage(recipeId, url);
+        return ResponseEntity.ok(Map.of("message", "Image deleted successfully"));
+    }
+
+
+    @GetMapping("/test")
+        public String test()
+        {
+            return "test successful";
+        }
 
 }

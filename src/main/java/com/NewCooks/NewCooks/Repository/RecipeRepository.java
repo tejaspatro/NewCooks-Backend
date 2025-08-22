@@ -9,5 +9,5 @@ import java.util.List;
 @Repository
 public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     List<Recipe> findByChefId(Long chefId);
-    boolean existsByTitleAndChefId(String title, Long chefId);
+    boolean existsByTitleIgnoreCaseAndChefId(String title, Long chefId);
 }

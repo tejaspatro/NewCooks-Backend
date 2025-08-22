@@ -17,4 +17,8 @@ public class RecipeDTO {
     private List<String> utensils;
     private String nutritionInfo;
     private List<String> instructions;
+
+    // New fields
+    private String thumbnail;
+    private List<String> images;
 }

@@ -49,4 +49,12 @@ public class Recipe {
     @Column(name = "instruction", length = 2000)
     private List<String> instructions = new ArrayList<>();
 
+    // New fields for images
+    @Column(name = "thumbnail")
+    private String thumbnail;
+
+    @ElementCollection
+    @CollectionTable(name = "recipe_images", joinColumns = @JoinColumn(name = "recipe_id"))
+    @Column(name = "image_url")
+    private List<String> images = new ArrayList<>();
 }
