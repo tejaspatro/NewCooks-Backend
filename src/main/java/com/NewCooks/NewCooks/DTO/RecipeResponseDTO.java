@@ -16,7 +16,7 @@ public class RecipeResponseDTO {
     private List<String> Ingredients;
     private List<String> Utensils;
     private String NutritionInfo;
-    private ChefDTO chef;
+    private Chef_User_DTO chef;
     private List<String> instructions;
 
     // New fields

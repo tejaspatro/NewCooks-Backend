@@ -1,14 +1,17 @@
 package com.NewCooks.NewCooks.Controller;
 
-import com.NewCooks.NewCooks.DTO.RecipeDTO;
-import com.NewCooks.NewCooks.DTO.RecipeResponseDTO;
+import com.NewCooks.NewCooks.DTO.*;
+import com.NewCooks.NewCooks.Entity.Chef;
 import com.NewCooks.NewCooks.Entity.Recipe;
+import com.NewCooks.NewCooks.Repository.ChefRepository;
 import com.NewCooks.NewCooks.Service.ChefService;
 import com.NewCooks.NewCooks.Service.RecipeService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
@@ -31,7 +34,6 @@ public class ChefController
                 .map(loggedInChef -> loggedInChef.getId().equals(chefId))
                 .orElse(false);
     }
-
 
     @PostMapping("/{chefId}/recipes")
     public ResponseEntity<?> addRecipe(@PathVariable Long chefId, @RequestBody RecipeDTO dto){
@@ -108,6 +110,55 @@ public class ChefController
 
         recipeService.removeImage(recipeId, url);
         return ResponseEntity.ok(Map.of("message", "Image deleted successfully"));
+    }
+
+    @GetMapping("/chefprofile")
+    public ResponseEntity<ChefProfileDTO> getLoggedInChefProfile(Principal principal) {
+        if (principal == null) {
+            throw new RuntimeException("Unauthorized: Principal is null");
+        }
+        String email = principal.getName();
+
+        Chef chef = chefService.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Chef not found"));
+
+
+        ChefProfileDTO dto = new ChefProfileDTO(
+                chef.getId(),
+                chef.getName(),
+                chef.getEmail(),
+                chef.getExpertise(),
+                chef.getExperience(),
+                chef.getBio(),
+                chef.getProfilePicture()
+        );
+        return ResponseEntity.ok(dto);
+    }
+
+    @PutMapping("/chefprofile")
+    public ResponseEntity<ChefProfileDTO> updateChefProfile(@RequestBody ChefProfileDTO dto, Principal principal) {
+        String email = principal.getName(); // get logged-in chef's email
+
+        Chef updatedChef = chefService.updateChefProfile(
+                email,
+                dto.getName(),
+                dto.getExpertise(),
+                dto.getExperience(),
+                dto.getBio(),
+                dto.getProfilePicture()
+        );
+
+        ChefProfileDTO responseDTO = new ChefProfileDTO(
+                updatedChef.getId(),
+                updatedChef.getName(),
+                updatedChef.getEmail(),
+                updatedChef.getExpertise(),
+                updatedChef.getExperience(),
+                updatedChef.getBio(),
+                updatedChef.getProfilePicture()
+        );
+
+        return ResponseEntity.ok(responseDTO);
     }
 
 

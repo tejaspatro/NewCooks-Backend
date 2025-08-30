@@ -1,6 +1,7 @@
 package com.NewCooks.NewCooks.Service;
 
 import com.NewCooks.NewCooks.DTO.UserSignupDTO;
+import com.NewCooks.NewCooks.Entity.Chef;
 import com.NewCooks.NewCooks.Entity.User;
 import com.NewCooks.NewCooks.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -51,5 +52,9 @@ public class UserService {
         user.setActivationToken(null);
         userRepository.save(user);
         return true;
+    }
+
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
     }
 }

@@ -1,10 +1,8 @@
 package com.NewCooks.NewCooks.Service;
 
-import com.NewCooks.NewCooks.DTO.ChefDTO;
+import com.NewCooks.NewCooks.DTO.ChefProfileDTO;
 import com.NewCooks.NewCooks.DTO.ChefSignupDTO;
-import com.NewCooks.NewCooks.DTO.RecipeResponseDTO;
 import com.NewCooks.NewCooks.Entity.Chef;
-import com.NewCooks.NewCooks.Entity.Recipe;
 import com.NewCooks.NewCooks.Repository.ChefRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.MailException;
@@ -56,6 +54,43 @@ public class ChefService {
         chefRepository.save(chef);
         return true;
     }
+
+    public ChefProfileDTO toChefProfileDTO(Chef chef) {
+        return new ChefProfileDTO(
+                chef.getId(),
+                chef.getName(),
+                chef.getEmail(),
+                chef.getExpertise(),
+                chef.getExperience(),
+                chef.getBio(),
+                chef.getProfilePicture()
+        );
+    }
+
+    public ChefProfileDTO getChefProfile(String email) {
+        Chef chef = chefRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Chef not found"));
+        return toChefProfileDTO(chef);
+    }
+
+    public Chef updateChefProfile(String email, String name, String expertise, String experience, String bio, String profilePicture) {
+        // Find the chef by email
+        Chef chef = chefRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Chef not found"));
+
+        // Update only the fields we want
+        if (name != null) {
+            chef.setName(name);
+        }
+        if (expertise != null) chef.setExpertise(expertise);
+        if (experience != null) chef.setExperience(experience);
+        if (bio != null) chef.setBio(bio);
+        if (profilePicture != null) chef.setProfilePicture(profilePicture);
+
+        // Save updated chef
+        return chefRepository.save(chef);
+    }
+
 
     public Optional<Chef> findByEmail(String email) {
         return chefRepository.findByEmail(email);

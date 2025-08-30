@@ -1,12 +1,11 @@
 package com.NewCooks.NewCooks.Entity;
 
-
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
 @Table(
-        name = "tbl_review",
+        name = "tbl_rating",
         uniqueConstraints = {
                 @UniqueConstraint(columnNames = {"user_id", "recipe_id"})
         }
@@ -16,7 +15,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ReviewEntity {
+public class RatingEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,6 +29,6 @@ public class ReviewEntity {
     @JoinColumn(name = "recipe_id", nullable = false)
     private Recipe recipe;
 
-    @Column(nullable = false, length = 2000)
-    private String reviewText;
+    @Column(nullable = false)
+    private int ratingValue; // e.g. 1 to 5
 }

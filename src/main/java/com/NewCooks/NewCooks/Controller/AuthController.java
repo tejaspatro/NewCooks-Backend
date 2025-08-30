@@ -17,6 +17,7 @@ import org.springframework.mail.MailException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.Map;
 import java.util.UUID;
 
@@ -142,6 +143,7 @@ public class AuthController {
         );
     }
 
+
     private Map<String, Object> getChefProfile(Chef chef) {
         return Map.of(
                 "id", chef.getId(),
@@ -236,7 +238,6 @@ public class AuthController {
         }
         return ResponseEntity.ok(Map.of("message", "Password updated. Activation email sent to your inbox."));
     }
-
 
     @GetMapping("/test")
     public String test() {

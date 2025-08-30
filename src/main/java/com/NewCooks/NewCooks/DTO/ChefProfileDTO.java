@@ -4,14 +4,15 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.management.relation.Role;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ChefDTO
-{
+public class ChefProfileDTO {
     private Long id;
     private String name;
     private String email;
+    private String expertise;
+    private String experience;
+    private String bio;
+    private String profilePicture;
 }

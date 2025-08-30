@@ -1,15 +1,12 @@
 package com.NewCooks.NewCooks.Service;
 
-import com.NewCooks.NewCooks.Config.CloudinaryConfig;
-import com.NewCooks.NewCooks.DTO.ChefDTO;
-import com.NewCooks.NewCooks.DTO.RecipeDTO;
-import com.NewCooks.NewCooks.DTO.RecipeResponseDTO;
-import com.NewCooks.NewCooks.Entity.Chef;
-import com.NewCooks.NewCooks.Entity.Recipe;
-import com.NewCooks.NewCooks.Repository.ChefRepository;
-import com.NewCooks.NewCooks.Repository.RecipeRepository;
+import com.NewCooks.NewCooks.DTO.*;
+import com.NewCooks.NewCooks.Entity.*;
+import com.NewCooks.NewCooks.Repository.*;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -22,17 +19,16 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class RecipeService {
 
     private final RecipeRepository recipeRepository;
     private final ChefRepository chefRepository;
+    private final ReviewRepository reviewRepository;
+    private final RatingRepository ratingRepository;
+    private final UserRepository userRepository;
     private final Cloudinary cloudinary;
 
-    public RecipeService(RecipeRepository recipeRepository, ChefRepository chefRepository, CloudinaryConfig cloudinaryConfig) {
-        this.recipeRepository = recipeRepository;
-        this.chefRepository = chefRepository;
-        this.cloudinary = cloudinaryConfig.getCloudinary();
-    }
 
     public Recipe addRecipe(Long chefId, RecipeDTO dto){
         Chef chef = chefRepository.findById(chefId)
@@ -126,7 +122,7 @@ public class RecipeService {
     public RecipeResponseDTO toRecipeResponseDTO(Recipe recipe)
     {
         Chef chef = recipe.getChef();
-        ChefDTO chefDTO = new ChefDTO(chef.getId(), chef.getName(), chef.getEmail());
+        Chef_User_DTO chefUserDTO = new Chef_User_DTO(chef.getId(), chef.getName(), chef.getEmail());
         return new RecipeResponseDTO(
                 recipe.getRecipeId(),
                 recipe.getTitle(),
@@ -134,7 +130,7 @@ public class RecipeService {
                 recipe.getIngredients(),
                 recipe.getUtensils(),
                 recipe.getNutritionInfo(),
-                chefDTO,
+                chefUserDTO,
                 recipe.getInstructions(),
                 recipe.getThumbnail(),
                 recipe.getImages()
@@ -168,4 +164,87 @@ public class RecipeService {
         String filename = parts[parts.length - 1]; // "<public_id>.jpg"
         return filename.split("\\.")[0]; // "<public_id>"
     }
+
+    // ===== Add or Update Review =====
+    public ReviewEntity addOrUpdateReview(Long recipeId, Long userId, String comment) {
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .orElseThrow(() -> new RuntimeException("Recipe not found"));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        ReviewEntity review = reviewRepository.findByUserAndRecipe(user, recipe)
+                .orElse(new ReviewEntity());
+
+        review.setRecipe(recipe);
+        review.setUser(user);
+        review.setReviewText(comment);
+
+        return reviewRepository.save(review);
+    }
+
+    // ===== Add or Update Rating =====
+    @Transactional
+    public RatingResponseDTO addOrUpdateRating(Long recipeId, Long userId, int stars) {
+        if (stars < 0 || stars > 5) {
+            throw new RuntimeException("Rating must be between 0 and 5");
+        }
+
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .orElseThrow(() -> new RuntimeException("Recipe not found"));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        RatingEntity rating = ratingRepository.findByUserAndRecipe(user, recipe)
+                .orElse(new RatingEntity());
+
+        rating.setRecipe(recipe);
+        rating.setUser(user);
+        rating.setRatingValue(stars);
+
+        RatingEntity savedRating = ratingRepository.save(rating);
+
+        return RatingResponseDTO.fromEntity(savedRating);
+    }
+
+
+    // ===== Get average rating =====
+    public double getAverageRating(Long recipeId) {
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .orElseThrow(() -> new RuntimeException("Recipe not found"));
+        Double avg = ratingRepository.findAverageRatingByRecipe(recipe);
+        return avg != null ? avg : 0.0;
+    }
+
+    // ===== Get all reviews for a recipe =====
+    public List<ReviewEntity> getReviewsForRecipe(Long recipeId) {
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .orElseThrow(() -> new RuntimeException("Recipe not found"));
+        return reviewRepository.findByRecipe(recipe);
+    }
+
+    public void deleteReview(Long userId, Long recipeId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .orElseThrow(() -> new RuntimeException("Recipe not found"));
+
+        ReviewEntity review = reviewRepository.findByUserAndRecipe(user, recipe)
+                .orElseThrow(() -> new RuntimeException("Review not found"));
+
+        reviewRepository.delete(review);
+    }
+
+    public void deleteRating(Long userId, Long recipeId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .orElseThrow(() -> new RuntimeException("Recipe not found"));
+
+        RatingEntity rating = ratingRepository.findByUserAndRecipe(user, recipe)
+                .orElseThrow(() -> new RuntimeException("Rating not found"));
+
+        ratingRepository.delete(rating);
+    }
+
 }

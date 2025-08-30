@@ -37,4 +37,17 @@ public class Chef {
     @Column(unique = true)
     private String activationToken;
 
+    @Column(length = 255)
+    private String expertise;
+
+    @Column(length = 255)
+    private String experience; // Can also be an integer if storing years
+
+    @Column(length = 1000)
+    private String bio;
+
+    @Column(name = "profile_picture")
+    private String profilePicture;
+
+
 }
