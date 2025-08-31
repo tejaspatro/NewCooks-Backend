@@ -2,6 +2,7 @@ package com.NewCooks.NewCooks.Controller;
 
 import com.NewCooks.NewCooks.DTO.RatingDTO;
 import com.NewCooks.NewCooks.DTO.RecipeResponseDTO;
+import com.NewCooks.NewCooks.DTO.ReviewDTO;
 import com.NewCooks.NewCooks.Entity.Recipe;
 import com.NewCooks.NewCooks.Entity.User;
 import com.NewCooks.NewCooks.Repository.UserRepository;
@@ -60,7 +61,7 @@ public class UserController {
         return ResponseEntity.ok("Account activated successfully");
     }
 
-    @PostMapping("/recipes/{recipeId}/ratings")
+    @PostMapping("/ratings/{recipeId}")
     public ResponseEntity<?> addOrUpdateRating(
             @PathVariable Long recipeId,
             @RequestBody RatingDTO ratingDTO
@@ -80,6 +81,77 @@ public class UserController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    @DeleteMapping("/ratings/{recipeId}")
+    public ResponseEntity<?> deleteRating(
+            @PathVariable Long recipeId
+    ) {
+        String loggedInEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        Optional<User> userOpt = userService.findByEmail(loggedInEmail);
+
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("User not authorized or not found.");
+        }
+        Long userId = userOpt.get().getUserId();
+
+        try {
+            recipeService.deleteRating(userId, recipeId);
+            return ResponseEntity.ok("Review deleted successfully.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/reviews/{recipeId}")
+    public ResponseEntity<?> addOrUpdateReview(
+            @PathVariable Long recipeId,
+            @RequestBody ReviewDTO reviewDTO
+    ) {
+        String loggedInEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        Optional<User> userOpt = userService.findByEmail(loggedInEmail);
+
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("User not authorized or not found.");
+        }
+        Long userId = userOpt.get().getUserId();
+
+        try {
+            return ResponseEntity.ok(recipeService.addOrUpdateReview(recipeId, userId, reviewDTO.getReviewText()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/reviews/{recipeId}")
+    public ResponseEntity<?> getReviewsForRecipe(@PathVariable Long recipeId) {
+        try {
+            return ResponseEntity.ok(recipeService.getReviewsForRecipe(recipeId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+
+    @DeleteMapping("/reviews/{reviewId}")
+    public ResponseEntity<?> deleteReview(
+            @PathVariable Long reviewId
+    ) {
+        String loggedInEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        Optional<User> userOpt = userService.findByEmail(loggedInEmail);
+
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("User not authorized or not found.");
+        }
+        Long userId = userOpt.get().getUserId();
+
+        try {
+            recipeService.deleteReview(userId, reviewId);
+            return ResponseEntity.ok("Review deleted successfully.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
 
     @GetMapping("/test")
     public String test()

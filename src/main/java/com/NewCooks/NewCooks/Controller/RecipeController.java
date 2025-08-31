@@ -41,67 +41,23 @@ public class RecipeController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PostMapping("/{recipeId}/reviews")
-    public ResponseEntity<?> addReview(
-            @PathVariable Long recipeId,
-            @RequestParam Long userId, // or get from auth
-            @RequestBody String reviewText
-    ) {
-        try {
-            return ResponseEntity.ok(recipeService.addOrUpdateReview(userId, recipeId, reviewText));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
 
-//    @PostMapping("/{recipeId}/ratings/{userId}")
-//    public ResponseEntity<?> addOrUpdateRating(
-//            @PathVariable Long recipeId,
-//            @PathVariable Long userId, // or get from auth
-//            @RequestBody int stars
-//    ) {
-//        try {
-//            return ResponseEntity.ok(recipeService.addOrUpdateRating(recipeId, userId, stars));
-//        } catch (RuntimeException e) {
-//            return ResponseEntity.badRequest().body(e.getMessage());
-//        }
-//    }
 
-    @GetMapping("/{recipeId}/reviews")
-    public ResponseEntity<?> getReviews(@PathVariable Long recipeId) {
-        return ResponseEntity.ok(recipeService.getReviewsForRecipe(recipeId));
-    }
 
     @GetMapping("/{recipeId}/average-rating")
     public ResponseEntity<Double> getAverageRating(@PathVariable Long recipeId) {
         return ResponseEntity.ok(recipeService.getAverageRating(recipeId));
     }
 
-    @DeleteMapping("/{recipeId}/reviews")
-    public ResponseEntity<?> deleteReview(
-            @PathVariable Long recipeId,
-            @RequestParam Long userId
-    ) {
+    @GetMapping("/rating/{recipeId}")
+    public ResponseEntity<?> getRatingForRecipe(@PathVariable Long recipeId) {
         try {
-            recipeService.deleteReview(userId, recipeId);
-            return ResponseEntity.ok("Review deleted successfully");
+            return ResponseEntity.ok(recipeService.getRatingStats(recipeId));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
     }
 
-    @DeleteMapping("/{recipeId}/ratings")
-    public ResponseEntity<?> deleteRating(
-            @PathVariable Long recipeId,
-            @RequestParam Long userId
-    ) {
-        try {
-            recipeService.deleteRating(userId, recipeId);
-            return ResponseEntity.ok("Rating deleted successfully");
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
 
 
 }

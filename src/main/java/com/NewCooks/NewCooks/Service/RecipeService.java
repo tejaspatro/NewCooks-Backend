@@ -14,7 +14,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -165,28 +167,13 @@ public class RecipeService {
         return filename.split("\\.")[0]; // "<public_id>"
     }
 
-    // ===== Add or Update Review =====
-    public ReviewEntity addOrUpdateReview(Long recipeId, Long userId, String comment) {
-        Recipe recipe = recipeRepository.findById(recipeId)
-                .orElseThrow(() -> new RuntimeException("Recipe not found"));
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        ReviewEntity review = reviewRepository.findByUserAndRecipe(user, recipe)
-                .orElse(new ReviewEntity());
-
-        review.setRecipe(recipe);
-        review.setUser(user);
-        review.setReviewText(comment);
-
-        return reviewRepository.save(review);
-    }
 
     // ===== Add or Update Rating =====
     @Transactional
     public RatingResponseDTO addOrUpdateRating(Long recipeId, Long userId, int stars) {
-        if (stars < 0 || stars > 5) {
-            throw new RuntimeException("Rating must be between 0 and 5");
+        if (stars < 1 || stars > 5) {
+            throw new RuntimeException("Rating must be between 1 and 5");
         }
 
         Recipe recipe = recipeRepository.findById(recipeId)
@@ -207,6 +194,27 @@ public class RecipeService {
         return RatingResponseDTO.fromEntity(savedRating);
     }
 
+    public RatingStatsDTO getRatingStats(Long recipeId) {
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .orElseThrow(() -> new RuntimeException("Recipe not found"));
+
+        Double avg = ratingRepository.findAverageRatingByRecipe(recipe);
+        List<Object[]> starCounts = ratingRepository.countRatingsByStars(recipe);
+
+        long total = 0;
+        Map<Integer, Long> countsMap = new HashMap<>();
+        for (int i = 1; i <= 5; i++) countsMap.put(i, 0L); // initialize
+
+        for (Object[] row : starCounts) {
+            int star = (Integer) row[0];
+            long count = (Long) row[1];
+            countsMap.put(star, count);
+            total += count;
+        }
+
+        return new RatingStatsDTO(avg != null ? avg : 0.0, total, countsMap);
+    }
+
 
     // ===== Get average rating =====
     public double getAverageRating(Long recipeId) {
@@ -214,25 +222,6 @@ public class RecipeService {
                 .orElseThrow(() -> new RuntimeException("Recipe not found"));
         Double avg = ratingRepository.findAverageRatingByRecipe(recipe);
         return avg != null ? avg : 0.0;
-    }
-
-    // ===== Get all reviews for a recipe =====
-    public List<ReviewEntity> getReviewsForRecipe(Long recipeId) {
-        Recipe recipe = recipeRepository.findById(recipeId)
-                .orElseThrow(() -> new RuntimeException("Recipe not found"));
-        return reviewRepository.findByRecipe(recipe);
-    }
-
-    public void deleteReview(Long userId, Long recipeId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        Recipe recipe = recipeRepository.findById(recipeId)
-                .orElseThrow(() -> new RuntimeException("Recipe not found"));
-
-        ReviewEntity review = reviewRepository.findByUserAndRecipe(user, recipe)
-                .orElseThrow(() -> new RuntimeException("Review not found"));
-
-        reviewRepository.delete(review);
     }
 
     public void deleteRating(Long userId, Long recipeId) {
@@ -246,5 +235,52 @@ public class RecipeService {
 
         ratingRepository.delete(rating);
     }
+
+    // ===== Add or Update Review =====
+    @Transactional
+    public ReviewResponseDTO addOrUpdateReview(Long recipeId, Long userId, String reviewText) {
+        if (reviewText == null || reviewText.isBlank()) {
+            throw new RuntimeException("Review cannot be empty");
+        }
+
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .orElseThrow(() -> new RuntimeException("Recipe not found"));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        ReviewEntity review = reviewRepository.findByUserAndRecipe(user, recipe)
+                .orElse(new ReviewEntity());
+
+        review.setRecipe(recipe);
+        review.setUser(user);
+        review.setReviewText(reviewText);
+
+        ReviewEntity savedReview = reviewRepository.save(review);
+        return ReviewResponseDTO.fromEntity(savedReview);
+    }
+
+    // ===== Get all reviews for a recipe =====
+    public List<ReviewResponseDTO> getReviewsForRecipe(Long recipeId) {
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .orElseThrow(() -> new RuntimeException("Recipe not found"));
+
+        List<ReviewEntity> reviews = reviewRepository.findByRecipe(recipe);
+        return reviews.stream()
+                .map(ReviewResponseDTO::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    // ===== Delete a review =====
+    public void deleteReview(Long userId, Long reviewId) {
+        ReviewEntity review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new RuntimeException("Review not found"));
+
+        if (!review.getUser().getUserId().equals(userId)) {
+            throw new RuntimeException("Cannot delete another user's review");
+        }
+
+        reviewRepository.delete(review);
+    }
+
 
 }
