@@ -11,4 +11,6 @@ import java.util.Optional;
 public interface ReviewRepository extends JpaRepository<ReviewEntity, Long> {
     Optional<ReviewEntity> findByUserAndRecipe(User user, Recipe recipe);
     List<ReviewEntity> findByRecipe(Recipe recipe);
+    List<ReviewEntity> findByRecipe_RecipeId(Long recipeId);
+
 }

@@ -261,14 +261,12 @@ public class RecipeService {
 
     // ===== Get all reviews for a recipe =====
     public List<ReviewResponseDTO> getReviewsForRecipe(Long recipeId) {
-        Recipe recipe = recipeRepository.findById(recipeId)
-                .orElseThrow(() -> new RuntimeException("Recipe not found"));
-
-        List<ReviewEntity> reviews = reviewRepository.findByRecipe(recipe);
+        List<ReviewEntity> reviews = reviewRepository.findByRecipe_RecipeId(recipeId);
         return reviews.stream()
                 .map(ReviewResponseDTO::fromEntity)
                 .collect(Collectors.toList());
     }
+
 
     // ===== Delete a review =====
     public void deleteReview(Long userId, Long reviewId) {
@@ -281,6 +279,9 @@ public class RecipeService {
 
         reviewRepository.delete(review);
     }
+
+
+
 
 
 }

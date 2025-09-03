@@ -1,5 +1,6 @@
 package com.NewCooks.NewCooks.DTO;
 
+import com.NewCooks.NewCooks.Entity.Recipe;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

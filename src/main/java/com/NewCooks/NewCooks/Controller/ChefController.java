@@ -6,8 +6,10 @@ import com.NewCooks.NewCooks.Entity.Recipe;
 import com.NewCooks.NewCooks.Repository.ChefRepository;
 import com.NewCooks.NewCooks.Service.ChefService;
 import com.NewCooks.NewCooks.Service.RecipeService;
+import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,15 +19,12 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/chef")
+@AllArgsConstructor
 public class ChefController
 {
     private final RecipeService recipeService;
     private final ChefService chefService;
 
-    public ChefController(RecipeService recipeService, ChefService chefService) {
-        this.recipeService = recipeService;
-        this.chefService = chefService;
-    }
 
     // Helper method to check if logged-in user matches path chefId
     private boolean isAuthorized(Long chefId) {
@@ -35,8 +34,14 @@ public class ChefController
                 .orElse(false);
     }
 
-    @PostMapping("/{chefId}/recipes")
-    public ResponseEntity<?> addRecipe(@PathVariable Long chefId, @RequestBody RecipeDTO dto){
+    @PostMapping("/recipes")
+    public ResponseEntity<?> addRecipe(@RequestBody RecipeDTO dto, Principal principal){
+
+        String loggedInUsername = principal.getName();
+        Long chefId = chefService.findByEmail(loggedInUsername)
+                .orElseThrow(() -> new RuntimeException("Chef not found"))
+                .getId();
+
         if (!isAuthorized(chefId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You are not authorized to add recipes for this chef.");
         }
@@ -45,10 +50,15 @@ public class ChefController
         return ResponseEntity.ok(responseDTO);
     }
 
-    @PutMapping("/{chefId}/recipes/{recipeId}")
-    public ResponseEntity<?> updateRecipe(@PathVariable Long chefId,
-                                          @PathVariable Long recipeId,
-                                          @RequestBody RecipeDTO dto) {
+    @PutMapping("recipes/{recipeId}")
+    public ResponseEntity<?> updateRecipe(@PathVariable Long recipeId,
+                                          @RequestBody RecipeDTO dto,
+                                          Principal principal) {
+        String loggedInUsername = principal.getName();
+        Long chefId = chefService.findByEmail(loggedInUsername)
+                .orElseThrow(() -> new RuntimeException("Chef not found"))
+                .getId();
+
         if (!isAuthorized(chefId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You are not authorized to update recipes for this chef.");
         }
@@ -68,8 +78,14 @@ public class ChefController
         return ResponseEntity.ok("Recipe deleted");
     }
 
-    @GetMapping("/{chefId}/recipes")
-    public ResponseEntity<?> getMyRecipes(@PathVariable Long chefId) {
+    @GetMapping("/recipes")
+    public ResponseEntity<?> getMyRecipes(Principal principal) {
+
+        String loggedInUsername = principal.getName();
+        Long chefId = chefService.findByEmail(loggedInUsername)
+                .orElseThrow(() -> new RuntimeException("Chef not found"))
+                .getId();
+
         if (!isAuthorized(chefId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You are not authorized to view recipes for this chef.");
         }
@@ -81,8 +97,12 @@ public class ChefController
         return ResponseEntity.ok(dtoList);
     }
 
-    @GetMapping("/{chefId}/recipes/{recipeId}")
-    public ResponseEntity<?> getMyRecipeById(@PathVariable Long chefId, @PathVariable Long recipeId) {
+    @GetMapping("/recipes/{recipeId}")
+    public ResponseEntity<?> getMyRecipeById(Principal principal, @PathVariable Long recipeId) {
+        String loggedInUsername = principal.getName();
+        Long chefId = chefService.findByEmail(loggedInUsername)
+                .orElseThrow(() -> new RuntimeException("Chef not found"))
+                .getId();
         if (!isAuthorized(chefId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body("You are not authorized to view recipes for this chef.");
@@ -159,6 +179,48 @@ public class ChefController
         );
 
         return ResponseEntity.ok(responseDTO);
+    }
+
+    @GetMapping("/recipes/{recipeId}/reviews")
+    public ResponseEntity<?> getReviewsForRecipeByChef(@PathVariable Long recipeId, Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).body("Unauthorized: Principal is null");
+        }
+
+        String email = principal.getName();
+
+        try {
+            // Optional: Check if this recipe belongs to the logged-in chef
+            Recipe recipe = recipeService.getRecipeById(recipeId)
+                    .orElseThrow(() -> new RuntimeException("Recipe not found"));
+
+            if (!recipe.getChef().getEmail().equals(email)) {
+                return ResponseEntity.status(403).body("Forbidden: Not your recipe");
+            }
+
+            // Fetch reviews
+            return ResponseEntity.ok(recipeService.getReviewsForRecipe(recipeId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PreAuthorize("hasRole('CHEF')")
+    @GetMapping("/recipes/search")
+    public ResponseEntity<List<ChefRecipeSearchSuggestionDTO>> searchChefRecipes(
+            @RequestParam String keyword,
+            Principal principal) {
+
+        // Get logged-in username (email or username depending on your setup)
+        String loggedInUsername = principal.getName();
+
+        // Look up chefId securely from DB
+        Long chefId = chefService.findByEmail(loggedInUsername)
+                .orElseThrow(() -> new RuntimeException("Chef not found"))
+                .getId();
+
+        List<ChefRecipeSearchSuggestionDTO> results = chefService.searchChefRecipes(chefId, keyword);
+        return ResponseEntity.ok(results);
     }
 
 

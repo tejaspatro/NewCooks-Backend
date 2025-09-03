@@ -54,6 +54,26 @@ public class UserService {
         return true;
     }
 
+    public User updateUserProfile(String email, String name, String profilePicture, String aboutMe) {
+        // Find the user by email
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Update only the fields we want
+        if (name != null) {
+            user.setName(name);
+        }
+        if (profilePicture != null) {
+            user.setProfilePicture(profilePicture);
+        }
+        if (aboutMe != null) {
+            user.setAboutMe(aboutMe);
+        }
+
+        // Save updated user
+        return userRepository.save(user);
+    }
+
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmail(email);
     }

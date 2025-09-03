@@ -31,4 +31,10 @@ public class User {
     @Column(unique = true)
     private String activationToken;
 
+    @Column(name = "profile_picture")
+    private String profilePicture;
+
+    @Column(name = "about_me", length = 1000)
+    private String aboutMe;
+
 }

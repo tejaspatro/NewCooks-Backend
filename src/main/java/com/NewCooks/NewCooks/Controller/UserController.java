@@ -3,6 +3,7 @@ package com.NewCooks.NewCooks.Controller;
 import com.NewCooks.NewCooks.DTO.RatingDTO;
 import com.NewCooks.NewCooks.DTO.RecipeResponseDTO;
 import com.NewCooks.NewCooks.DTO.ReviewDTO;
+import com.NewCooks.NewCooks.DTO.UserProfileDTO;
 import com.NewCooks.NewCooks.Entity.Recipe;
 import com.NewCooks.NewCooks.Entity.User;
 import com.NewCooks.NewCooks.Repository.UserRepository;
@@ -14,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.Optional;
 
 @RestController
@@ -150,6 +152,50 @@ public class UserController {
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+    @GetMapping("/userprofile")
+    public ResponseEntity<UserProfileDTO> getLoggedInUserProfile(Principal principal) {
+        if (principal == null) {
+            throw new RuntimeException("Unauthorized: Principal is null");
+        }
+
+        String email = principal.getName();
+
+        User user = userService.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        UserProfileDTO dto = new UserProfileDTO(
+                user.getUserId(),
+                user.getName(),
+                user.getEmail(),
+                user.getProfilePicture(),
+                user.getAboutMe()
+        );
+
+        return ResponseEntity.ok(dto);
+    }
+
+    @PutMapping("/userprofile")
+    public ResponseEntity<UserProfileDTO> updateUserProfile(@RequestBody UserProfileDTO dto, Principal principal) {
+        String email = principal.getName(); // get logged-in user's email
+
+        User updatedUser = userService.updateUserProfile(
+                email,
+                dto.getName(),
+                dto.getProfilePicture(),
+                dto.getAboutMe()
+        );
+
+        UserProfileDTO responseDTO = new UserProfileDTO(
+                updatedUser.getUserId(),
+                updatedUser.getName(),
+                updatedUser.getEmail(),
+                updatedUser.getProfilePicture(),
+                updatedUser.getAboutMe()
+        );
+
+        return ResponseEntity.ok(responseDTO);
     }
 
 

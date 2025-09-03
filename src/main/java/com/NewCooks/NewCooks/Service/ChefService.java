@@ -1,6 +1,7 @@
 package com.NewCooks.NewCooks.Service;
 
 import com.NewCooks.NewCooks.DTO.ChefProfileDTO;
+import com.NewCooks.NewCooks.DTO.ChefRecipeSearchSuggestionDTO;
 import com.NewCooks.NewCooks.DTO.ChefSignupDTO;
 import com.NewCooks.NewCooks.Entity.Chef;
 import com.NewCooks.NewCooks.Repository.ChefRepository;
@@ -9,6 +10,7 @@ import org.springframework.mail.MailException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.Optional;
 
@@ -91,6 +93,12 @@ public class ChefService {
         return chefRepository.save(chef);
     }
 
+    public List<ChefRecipeSearchSuggestionDTO> searchChefRecipes(Long chefId, String keyword) {
+        return chefRepository.searchRecipesByChefAndKeyword(chefId, keyword)
+                .stream()
+                .map(r -> new ChefRecipeSearchSuggestionDTO(r.getRecipeId(), r.getTitle(), r.getDescription()))
+                .toList();
+    }
 
     public Optional<Chef> findByEmail(String email) {
         return chefRepository.findByEmail(email);
