@@ -1,5 +1,7 @@
 package com.NewCooks.NewCooks.Controller;
 
+import com.NewCooks.NewCooks.DTO.ChefAnalyticsDTO;
+import com.NewCooks.NewCooks.DTO.MostReviewedRecipeDTO;
 import com.NewCooks.NewCooks.DTO.RecipeResponseDTO;
 import com.NewCooks.NewCooks.Entity.Recipe;
 import com.NewCooks.NewCooks.Service.RecipeService;
@@ -9,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/recipes")
@@ -58,6 +62,10 @@ public class RecipeController {
         }
     }
 
-
+    @GetMapping("/most-reviewed")
+    public ResponseEntity<List<MostReviewedRecipeDTO>> getMostReviewed() {
+        List<MostReviewedRecipeDTO> mostReviewed = recipeService.getMostReviewedRecipes(5);
+        return ResponseEntity.ok(mostReviewed);
+    }
 
 }

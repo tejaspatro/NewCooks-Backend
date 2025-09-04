@@ -5,12 +5,17 @@ import com.NewCooks.NewCooks.DTO.ChefRecipeSearchSuggestionDTO;
 import com.NewCooks.NewCooks.DTO.ChefSignupDTO;
 import com.NewCooks.NewCooks.Entity.Chef;
 import com.NewCooks.NewCooks.Repository.ChefRepository;
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.MailException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.Optional;
 
@@ -21,6 +26,8 @@ public class ChefService {
     private final ChefRepository chefRepository;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
+    private final CloudinaryService cloudinaryService;
+    private final Cloudinary cloudinary;
 
     public Chef registerChef(ChefSignupDTO dto, String appBaseUrl) {
         if (chefRepository.existsByEmail(dto.getEmail())) {
@@ -75,30 +82,59 @@ public class ChefService {
         return toChefProfileDTO(chef);
     }
 
-    public Chef updateChefProfile(String email, String name, String expertise, String experience, String bio, String profilePicture) {
-        // Find the chef by email
+    private String uploadFileToCloudinary(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return null;
+        }
+        try {
+            Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
+            return (String) uploadResult.get("secure_url");
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to upload file to Cloudinary", e);
+        }
+    }
+
+
+    public Chef updateChefProfile(String email, ChefProfileDTO dto, MultipartFile profilePictureFile) {
         Chef chef = chefRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Chef not found"));
 
-        // Update only the fields we want
-        if (name != null) {
-            chef.setName(name);
-        }
-        if (expertise != null) chef.setExpertise(expertise);
-        if (experience != null) chef.setExperience(experience);
-        if (bio != null) chef.setBio(bio);
-        if (profilePicture != null) chef.setProfilePicture(profilePicture);
+        chef.setName(dto.getName());
+        chef.setExpertise(dto.getExpertise());
+        chef.setExperience(dto.getExperience());
+        chef.setBio(dto.getBio());
 
-        // Save updated chef
+        // Handle profile picture update
+        // Case 1: A new file is uploaded.
+        if (profilePictureFile != null && !profilePictureFile.isEmpty()) {
+            // Delete the old picture from Cloudinary if it exists
+            if (chef.getProfilePicture() != null && !chef.getProfilePicture().isEmpty()) {
+                String publicId = cloudinaryService.extractPublicId(chef.getProfilePicture()); // Assuming extractPublicId helper exists
+                cloudinaryService.deleteImageFromCloud(publicId); // Assuming deleteImageFromCloud helper exists
+            }
+            // Upload the new picture and set the URL
+            String newProfilePictureUrl = uploadFileToCloudinary(profilePictureFile);
+            chef.setProfilePicture(newProfilePictureUrl);
+        }
+        // Case 2: The user removed the picture without uploading a new one.
+        else if (dto.getProfilePicture() == null || dto.getProfilePicture().isEmpty()) {
+            if (chef.getProfilePicture() != null && !chef.getProfilePicture().isEmpty()) {
+                String publicId = cloudinaryService.extractPublicId(chef.getProfilePicture());
+                cloudinaryService.deleteImageFromCloud(publicId);
+                chef.setProfilePicture(null); // Set to null in the database
+            }
+        }
+
         return chefRepository.save(chef);
     }
-
     public List<ChefRecipeSearchSuggestionDTO> searchChefRecipes(Long chefId, String keyword) {
         return chefRepository.searchRecipesByChefAndKeyword(chefId, keyword)
                 .stream()
                 .map(r -> new ChefRecipeSearchSuggestionDTO(r.getRecipeId(), r.getTitle(), r.getDescription()))
                 .toList();
     }
+
+
 
     public Optional<Chef> findByEmail(String email) {
         return chefRepository.findByEmail(email);

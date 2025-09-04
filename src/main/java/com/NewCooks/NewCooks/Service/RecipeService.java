@@ -5,19 +5,18 @@ import com.NewCooks.NewCooks.Entity.*;
 import com.NewCooks.NewCooks.Repository.*;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.io.IOException;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,14 +29,14 @@ public class RecipeService {
     private final RatingRepository ratingRepository;
     private final UserRepository userRepository;
     private final Cloudinary cloudinary;
+    final CloudinaryService cloudinaryService;
 
 
-    public Recipe addRecipe(Long chefId, RecipeDTO dto){
+    public Recipe addRecipe(Long chefId, RecipeDTO dto, MultipartFile thumbnailFile, List<MultipartFile> imageFiles) {
         Chef chef = chefRepository.findById(chefId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chef not found"));
 
-        boolean exists = recipeRepository.existsByTitleIgnoreCaseAndChefId(dto.getTitle(), chefId);
-        if (exists) {
+        if (recipeRepository.existsByTitleIgnoreCaseAndChefId(dto.getTitle(), chefId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Recipe title already exists for this chef");
         }
 
@@ -49,12 +48,25 @@ public class RecipeService {
         r.setUtensils(dto.getUtensils());
         r.setNutritionInfo(dto.getNutritionInfo());
         r.setInstructions(dto.getInstructions());
-        r.setThumbnail(dto.getThumbnail());
-        r.setImages(dto.getImages());
+
+        // Upload and set thumbnail
+        String thumbnailUrl = uploadFileToCloudinary(thumbnailFile);
+        r.setThumbnail(thumbnailUrl);
+
+        // Upload and set additional images
+        if (imageFiles != null && !imageFiles.isEmpty()) {
+            List<String> imageUrls = imageFiles.stream()
+                    .map(this::uploadFileToCloudinary)
+                    .collect(Collectors.toList());
+            r.setImages(imageUrls);
+        } else {
+            r.setImages(new ArrayList<>());
+        }
+
         return recipeRepository.save(r);
     }
 
-    public Optional<Recipe> updateRecipe(Long chefId, Long recipeId, RecipeDTO dto) {
+    public Optional<Recipe> updateRecipe(Long chefId, Long recipeId, RecipeDTO dto, MultipartFile newThumbnailFile, List<MultipartFile> newImageFiles) {
         Recipe existing = recipeRepository.findById(recipeId)
                 .orElseThrow(() -> new RuntimeException("Recipe not found"));
         if (!existing.getChef().getId().equals(chefId)) {
@@ -74,18 +86,71 @@ public class RecipeService {
         existing.setUtensils(dto.getUtensils());
         existing.setNutritionInfo(dto.getNutritionInfo());
         existing.setInstructions(dto.getInstructions());
-        existing.setThumbnail(dto.getThumbnail());
-        existing.setImages(dto.getImages());
+        if (newThumbnailFile != null && !newThumbnailFile.isEmpty()) {
+            // Delete old thumbnail from Cloudinary if it exists
+            if (existing.getThumbnail() != null && !existing.getThumbnail().isEmpty()) {
+                cloudinaryService.deleteImageFromCloud(cloudinaryService.extractPublicId(existing.getThumbnail()));
+            }
+            String newThumbnailUrl = uploadFileToCloudinary(newThumbnailFile);
+            existing.setThumbnail(newThumbnailUrl);
+        } else {
+            // If the DTO's thumbnail is null/empty, it means it was removed on the frontend
+            if (dto.getThumbnail() == null || dto.getThumbnail().isEmpty()) {
+                if (existing.getThumbnail() != null && !existing.getThumbnail().isEmpty()) {
+                    cloudinaryService.deleteImageFromCloud(cloudinaryService.extractPublicId(existing.getThumbnail()));
+                }
+                existing.setThumbnail(null);
+            }
+        }
+
+        // Handle additional images update
+        List<String> finalImageUrls = new ArrayList<>(dto.getImages() != null ? dto.getImages() : List.of());
+        if (newImageFiles != null && !newImageFiles.isEmpty()) {
+            for (MultipartFile file : newImageFiles) {
+                String newImageUrl = uploadFileToCloudinary(file);
+                finalImageUrls.add(newImageUrl);
+            }
+        }
+
+        // Logic to delete images that were removed on the frontend
+        List<String> imagesToDelete = existing.getImages().stream()
+                .filter(url -> !finalImageUrls.contains(url))
+                .collect(Collectors.toList());
+
+        for(String url : imagesToDelete) {
+            cloudinaryService.deleteImageFromCloud(cloudinaryService.extractPublicId(url));
+        }
+
+        existing.setImages(finalImageUrls);
 
         return Optional.of(recipeRepository.save(existing));
     }
 
     public void deleteRecipe(Long chefId, Long recipeId) {
+        // 1. Find the recipe to be deleted
         Recipe existing = recipeRepository.findById(recipeId)
                 .orElseThrow(() -> new RuntimeException("Recipe not found"));
+
+        // 2. Authorization check
         if (!existing.getChef().getId().equals(chefId)) {
             throw new RuntimeException("Cannot delete another chef's recipe");
         }
+
+        // 3. Delete the thumbnail from Cloudinary if it exists
+        if (existing.getThumbnail() != null && !existing.getThumbnail().isEmpty()) {
+            String publicId = cloudinaryService.extractPublicId(existing.getThumbnail());
+            cloudinaryService.deleteImageFromCloud(publicId);
+        }
+
+        // 4. Delete all additional images from Cloudinary
+        if (existing.getImages() != null && !existing.getImages().isEmpty()) {
+            for (String imageUrl : existing.getImages()) {
+                String publicId = cloudinaryService.extractPublicId(imageUrl);
+                cloudinaryService.deleteImageFromCloud(publicId);
+            }
+        }
+
+        // 5. Finally, delete the recipe record from your database
         recipeRepository.delete(existing);
     }
 
@@ -139,32 +204,18 @@ public class RecipeService {
         );
     }
 
-    // ========== Cloudinary Image Delete Logic ==========
-    public void deleteImageFromCloud(String publicId) {
+    // A NEW HELPER METHOD TO UPLOAD A FILE TO CLOUDINARY
+    private String uploadFileToCloudinary(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return null;
+        }
         try {
-            cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
-        } catch (Exception e) {
+            Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
+            return (String) uploadResult.get("secure_url");
+        } catch (IOException e) {
             e.printStackTrace();
+            throw new RuntimeException("Failed to upload file to Cloudinary");
         }
-    }
-
-    public Recipe removeImage(Long recipeId, String urlToRemove) {
-        Recipe recipe = recipeRepository.findById(recipeId)
-                .orElseThrow(() -> new RuntimeException("Recipe not found"));
-        if (recipe.getImages().contains(urlToRemove)) {
-            recipe.getImages().remove(urlToRemove);
-            String publicId = extractPublicId(urlToRemove);
-            deleteImageFromCloud(publicId);
-            recipeRepository.save(recipe);
-        }
-        return recipe;
-    }
-
-    private String extractPublicId(String url) {
-        // Cloudinary URL example: https://res.cloudinary.com/<cloud>/image/upload/v123456/<public_id>.jpg
-        String[] parts = url.split("/");
-        String filename = parts[parts.length - 1]; // "<public_id>.jpg"
-        return filename.split("\\.")[0]; // "<public_id>"
     }
 
 
@@ -281,7 +332,49 @@ public class RecipeService {
     }
 
 
+    public List<MostReviewedRecipeDTO> getMostReviewedRecipes(int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        List<Object[]> results = reviewRepository.findMostReviewedRecipes(pageable);
 
+        List<MostReviewedRecipeDTO> dtoList = new ArrayList<>();
+        for (Object[] result : results) {
+            MostReviewedRecipeDTO dto = new MostReviewedRecipeDTO(
+                    (Long) result[0],
+                    (String) result[1],
+                    (String) result[2],
+                    (Long) result[3]
+            );
+            dtoList.add(dto);
+        }
+        return dtoList;
+    }
 
+    //for chef homepage analytics
+    @Transactional(readOnly = true)
+    public ChefAnalyticsDTO getChefAnalytics(Long chefId) {
 
+        // Total recipes
+        int totalRecipes = recipeRepository.countByChefId(chefId);
+
+        if (totalRecipes == 0) {
+            return new ChefAnalyticsDTO(0, 0.0, 0.0);
+        }
+
+        // Fetch all recipes
+        List<Recipe> recipes = recipeRepository.findByChefId(chefId);
+        List<Long> recipeIds = recipes.stream().map(r -> r.getRecipeId()).toList();
+
+        // Fetch all reviews
+        List<ReviewEntity> reviews = reviewRepository.findByRecipe_RecipeIdIn(recipeIds);
+        double avgReviews = (double) reviews.size() / totalRecipes;
+
+        // Fetch all ratings
+        List<RatingEntity> ratings = ratingRepository.findByRecipeIn(recipes);
+        double avgRating = ratings.stream()
+                .mapToInt(RatingEntity::getRatingValue)
+                .average()
+                .orElse(0.0);
+
+        return new ChefAnalyticsDTO(totalRecipes, avgReviews, avgRating);
+    }
 }

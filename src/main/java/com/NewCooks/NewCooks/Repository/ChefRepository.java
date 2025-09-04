@@ -21,4 +21,6 @@ public interface ChefRepository extends JpaRepository<Chef, Long> {
             "OR LOWER(r.description) LIKE LOWER(CONCAT('%', :keyword, '%')))")
     List<Recipe> searchRecipesByChefAndKeyword(@Param("chefId") Long chefId,
                                                @Param("keyword") String keyword);
+
+
 }
