@@ -4,7 +4,9 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "tbl_recipe", uniqueConstraints = {
@@ -64,6 +66,7 @@ public class Recipe {
     @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RatingEntity> ratings = new ArrayList<>();
 
-
+    @ManyToMany(mappedBy = "favoriteRecipes")
+    private Set<User> favoritedBy = new HashSet<>();
 
 }

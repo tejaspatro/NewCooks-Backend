@@ -13,6 +13,11 @@ import java.util.List;
 public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     List<Recipe> findByChefId(Long chefId);
     boolean existsByTitleIgnoreCaseAndChefId(String title, Long chefId);
-    int countByChefId(Long chefId);
+
+    @Query("SELECT COUNT(r) FROM Recipe r WHERE r.chef.id = :chefId")
+    int countByChefId(@Param("chefId") Long chefId);
+
+    @Query("SELECT r FROM Recipe r WHERE LOWER(r.title) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    List<Recipe> searchRecipesByKeyword(@Param("keyword") String keyword);
 
 }

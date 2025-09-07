@@ -23,6 +23,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/chef")
+@CrossOrigin(origins = "${newcooks.frontend.url}")
 @AllArgsConstructor
 public class ChefController
 {
@@ -126,18 +127,22 @@ public class ChefController
     @GetMapping("/recipes/{recipeId}")
     public ResponseEntity<?> getMyRecipeById(Principal principal, @PathVariable Long recipeId) {
         String loggedInUsername = principal.getName();
-        Long chefId = chefService.findByEmail(loggedInUsername)
+
+        Recipe recipe = recipeService.getRecipeById(recipeId)
+                .orElseThrow(() -> new RuntimeException("Recipe not found"));
+
+        Long loggedInChefId = chefService.findByEmail(loggedInUsername)
                 .orElseThrow(() -> new RuntimeException("Chef not found"))
                 .getId();
-        if (!isAuthorized(chefId)) {
+
+        if (!recipe.getChef().getId().equals(loggedInChefId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body("You are not authorized to view recipes for this chef.");
         }
-        return recipeService.getRecipeById(recipeId)
-                .map(recipeService::toRecipeResponseDTO)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+
+        return ResponseEntity.ok(recipeService.toRecipeResponseDTO(recipe));
     }
+
 
     @PostMapping("/{chefId}/recipes/{recipeId}/images/delete")
     public ResponseEntity<?> deleteRecipeImage(
@@ -161,7 +166,7 @@ public class ChefController
     @GetMapping("/chefprofile")
     public ResponseEntity<ChefProfileDTO> getLoggedInChefProfile(Principal principal) {
         if (principal == null) {
-            throw new RuntimeException("Unauthorized: Principal is null");
+            throw new RuntimeException("Unauthorized Access: Principal is null");
         }
         String email = principal.getName();
 
@@ -180,6 +185,26 @@ public class ChefController
         );
         return ResponseEntity.ok(dto);
     }
+
+//    user side
+    @GetMapping("/chef-public-profile")
+    public ResponseEntity<ChefProfileDTO> getPublicChefProfile(@RequestParam Long chefId) {
+        Chef chef = chefService.findById(chefId)
+                .orElseThrow(() -> new RuntimeException("Chef not found"));
+
+        ChefProfileDTO dto = new ChefProfileDTO(
+                chef.getId(),
+                chef.getName(),
+                chef.getEmail(),
+                chef.getExpertise(),
+                chef.getExperience(),
+                chef.getBio(),
+                chef.getProfilePicture()
+        );
+
+        return ResponseEntity.ok(dto);
+    }
+
 
     @PutMapping(value = "/chefprofile", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     public ResponseEntity<?> updateChefProfile(
@@ -261,6 +286,20 @@ public class ChefController
                 .getId();
         return recipeService.getChefAnalytics(chefId);
     }
+
+    @GetMapping("/most-reviewed")
+    public ResponseEntity<List<MostReviewedRecipeDTO>> getChefMostReviewed(Principal principal) {
+        // Get logged-in chef's ID
+        Long chefId = chefService.findByEmail(principal.getName())
+                .orElseThrow(() -> new RuntimeException("Chef not found"))
+                .getId();
+
+        // Fetch top 5 most-reviewed recipes for this chef
+        List<MostReviewedRecipeDTO> mostReviewed = recipeService.getChefMostReviewedRecipes(5, chefId);
+
+        return ResponseEntity.ok(mostReviewed);
+    }
+
 
     @GetMapping("/test")
         public String test()

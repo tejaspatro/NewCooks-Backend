@@ -1,14 +1,17 @@
 package com.NewCooks.NewCooks.Controller;
 
-import com.NewCooks.NewCooks.DTO.RatingDTO;
-import com.NewCooks.NewCooks.DTO.RecipeResponseDTO;
-import com.NewCooks.NewCooks.DTO.ReviewDTO;
-import com.NewCooks.NewCooks.DTO.UserProfileDTO;
+import com.NewCooks.NewCooks.DTO.*;
+import com.NewCooks.NewCooks.Entity.RatingEntity;
 import com.NewCooks.NewCooks.Entity.Recipe;
+import com.NewCooks.NewCooks.Entity.ReviewEntity;
 import com.NewCooks.NewCooks.Entity.User;
+import com.NewCooks.NewCooks.Repository.RatingRepository;
+import com.NewCooks.NewCooks.Repository.RecipeRepository;
+import com.NewCooks.NewCooks.Repository.ReviewRepository;
 import com.NewCooks.NewCooks.Repository.UserRepository;
 import com.NewCooks.NewCooks.Service.RecipeService;
 import com.NewCooks.NewCooks.Service.UserService;
+import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,26 +19,33 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.List;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/user")
+@CrossOrigin(origins = "${newcooks.frontend.url}")
+@AllArgsConstructor
 public class UserController {
 
     private final RecipeService recipeService;
     private final UserRepository userRepository;
     private final UserService userService;
+    private final RatingRepository ratingRepository;
+    private final RecipeRepository recipeRepository;
+    private final ReviewRepository reviewRepository;
 
-    public UserController(RecipeService recipeService, UserRepository userRepository, UserService userService) {
-        this.recipeService = recipeService;
-        this.userRepository = userRepository;
-        this.userService = userService;
+    private boolean isAuthorized(Long userId) {
+        String loggedInEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userService.findByEmail(loggedInEmail)
+                .map(loggedInChef -> loggedInChef.getUserId().equals(userId))
+                .orElse(false);
     }
 
     @GetMapping("/recipes")
     public ResponseEntity<Page<RecipeResponseDTO>> viewAllRecipes(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "16") int size
+            @RequestParam(defaultValue = "12") int size
     ) {
         Page<Recipe> recipesPage = recipeService.getAllRecipes(page, size);
         Page<RecipeResponseDTO> dtoList = recipesPage.map(recipeService::toRecipeResponseDTO);
@@ -49,6 +59,7 @@ public class UserController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+
 
     @GetMapping("/activate")
     public ResponseEntity<?> activateUser(@RequestParam String token) {
@@ -83,6 +94,27 @@ public class UserController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    @GetMapping("/recipes/user-rating/{recipeId}")
+    public ResponseEntity<RatingDTO> getUserRatingForRecipe(
+            @PathVariable Long recipeId,
+            Principal principal) {
+
+        String email = principal.getName();
+        User user = userService.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .orElseThrow(() -> new RuntimeException("Recipe not found"));
+
+        Optional<RatingEntity> rating = ratingRepository.findByUserAndRecipe(user, recipe);
+
+        int stars = rating.map(RatingEntity::getRatingValue).orElse(0);
+        RatingDTO dto = new RatingDTO(stars);
+
+        return ResponseEntity.ok(dto);
+    }
+
 
     @DeleteMapping("/ratings/{recipeId}")
     public ResponseEntity<?> deleteRating(
@@ -133,13 +165,41 @@ public class UserController {
         }
     }
 
+    @GetMapping("/recipes/my-review/{recipeId}")
+    public ResponseEntity<ReviewDTO> getUserReviewForRecipe(
+            @PathVariable Long recipeId,
+            Principal principal) {
+
+        String email = principal.getName();
+        User user = userService.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .orElseThrow(() -> new RuntimeException("Recipe not found"));
+
+        Optional<ReviewEntity> review = reviewRepository.findByUserAndRecipe(user, recipe);
+
+        if (review.isPresent()) {
+            ReviewEntity r = review.get();
+            ReviewDTO dto = new ReviewDTO(r.getId(), r.getReviewText());
+            return ResponseEntity.ok(dto);
+        } else {
+            // Return DTO with null id and empty text if no review
+            return ResponseEntity.ok(new ReviewDTO(null, ""));
+        }
+    }
+
+
+
 
     @DeleteMapping("/reviews/{reviewId}")
     public ResponseEntity<?> deleteReview(
-            @PathVariable Long reviewId
+            @PathVariable Long reviewId,
+            Principal principal
     ) {
-        String loggedInEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-        Optional<User> userOpt = userService.findByEmail(loggedInEmail);
+
+        String email = principal.getName();
+        Optional<User> userOpt = userService.findByEmail(email);
 
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("User not authorized or not found.");
@@ -196,6 +256,41 @@ public class UserController {
         );
 
         return ResponseEntity.ok(responseDTO);
+    }
+
+    @GetMapping("/recipes/search")
+    public ResponseEntity<List<RecipeSearchSuggestionDTO>> searchUserRecipes(
+            @RequestParam String keyword) {
+
+        List<RecipeSearchSuggestionDTO> results = userService.searchRecipes(keyword);
+        return ResponseEntity.ok(results);
+    }
+
+    @PostMapping("/favourites/{recipeId}")
+    public ResponseEntity<FavoriteDTO> toggleFavorite(
+            @PathVariable Long recipeId,
+            Principal principal) {
+        String username = principal.getName();
+        FavoriteDTO dto = userService.toggleFavorite(username, recipeId);
+        return ResponseEntity.ok(dto);
+    }
+
+    @GetMapping("/favourites")
+    public ResponseEntity<List<RecipeSearchSuggestionDTO>> getFavorites(Principal principal) {
+        String username = principal.getName();
+        List<RecipeSearchSuggestionDTO> favorites = userService.getUserFavorites(username);
+        return ResponseEntity.ok(favorites);
+    }
+
+    @GetMapping("/analytics")
+    public ResponseEntity<UserAnalyticsDTO> getUserAnalytics(Principal principal) {
+        Long userId = userService.findByEmail(principal.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"))
+                .getUserId();
+
+        UserAnalyticsDTO analytics = recipeService.getUserAnalytics(userId);
+
+        return ResponseEntity.ok(analytics);
     }
 
 

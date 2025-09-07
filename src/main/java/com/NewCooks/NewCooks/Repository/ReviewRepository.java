@@ -6,6 +6,7 @@ import com.NewCooks.NewCooks.Entity.User;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,4 +23,18 @@ public interface ReviewRepository extends JpaRepository<ReviewEntity, Long> {
             "GROUP BY r.recipeId, r.title, r.thumbnail " +
             "ORDER BY COUNT(re.id) DESC")
     List<Object[]> findMostReviewedRecipes(Pageable pageable);
+
+    @Query("""
+       SELECT r.id, r.title, r.thumbnail, COUNT(rv.id) AS totalReviews
+       FROM Recipe r
+       LEFT JOIN r.reviews rv
+       WHERE r.chef.id = :chefId
+       GROUP BY r.id, r.title, r.thumbnail
+       ORDER BY totalReviews DESC
+       """)
+    List<Object[]> findMostReviewedRecipesByChefId(@Param("chefId") Long chefId, Pageable pageable);
+
+    @Query("SELECT COUNT(r) FROM ReviewEntity r WHERE r.user.id = :userId")
+    int countByUserId(@Param("userId") Long userId);
+
 }

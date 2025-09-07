@@ -16,7 +16,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/recipes")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "${newcooks.frontend.url}")
 public class RecipeController {
 
     private final RecipeService recipeService;
@@ -27,23 +27,23 @@ public class RecipeController {
         this.userService = userService;
     }
 
-    @GetMapping
-    public ResponseEntity<Page<RecipeResponseDTO>> getAllRecipes(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "16") int size
-    ) {
-        Page<Recipe> recipesPage = recipeService.getAllRecipes(page, size);
-        Page<RecipeResponseDTO> dtoList = recipesPage.map(recipeService::toRecipeResponseDTO);
-        return ResponseEntity.ok(dtoList);
-    }
+//    @GetMapping
+//    public ResponseEntity<Page<RecipeResponseDTO>> getAllRecipes(
+//            @RequestParam(defaultValue = "0") int page,
+//            @RequestParam(defaultValue = "16") int size
+//    ) {
+//        Page<Recipe> recipesPage = recipeService.getAllRecipes(page, size);
+//        Page<RecipeResponseDTO> dtoList = recipesPage.map(recipeService::toRecipeResponseDTO);
+//        return ResponseEntity.ok(dtoList);
+//    }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<?> getRecipeById(@PathVariable Long id) {
-        return recipeService.getRecipeById(id)
-                .map(recipeService::toRecipeResponseDTO)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
+//    @GetMapping("/{id}")
+//    public ResponseEntity<?> getRecipeById(@PathVariable Long id) {
+//        return recipeService.getRecipeById(id)
+//                .map(recipeService::toRecipeResponseDTO)
+//                .map(ResponseEntity::ok)
+//                .orElse(ResponseEntity.notFound().build());
+//    }
 
 
 
@@ -62,9 +62,9 @@ public class RecipeController {
         }
     }
 
-    @GetMapping("/most-reviewed")
-    public ResponseEntity<List<MostReviewedRecipeDTO>> getMostReviewed() {
-        List<MostReviewedRecipeDTO> mostReviewed = recipeService.getMostReviewedRecipes(5);
+    @GetMapping("/most-reviewed/{limit}")
+    public ResponseEntity<List<MostReviewedRecipeDTO>> getChefMostReviewed(@PathVariable int limit) {
+        List<MostReviewedRecipeDTO> mostReviewed = recipeService.getMostReviewedRecipes(limit);
         return ResponseEntity.ok(mostReviewed);
     }
 

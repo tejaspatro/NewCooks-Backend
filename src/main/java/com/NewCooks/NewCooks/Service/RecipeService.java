@@ -332,22 +332,25 @@ public class RecipeService {
     }
 
 
-    public List<MostReviewedRecipeDTO> getMostReviewedRecipes(int limit) {
+    public List<MostReviewedRecipeDTO> getChefMostReviewedRecipes(int limit, Long chefId) {
         Pageable pageable = PageRequest.of(0, limit);
-        List<Object[]> results = reviewRepository.findMostReviewedRecipes(pageable);
+
+        // Pass chefId to repository query
+        List<Object[]> results = reviewRepository.findMostReviewedRecipesByChefId(chefId, pageable);
 
         List<MostReviewedRecipeDTO> dtoList = new ArrayList<>();
         for (Object[] result : results) {
             MostReviewedRecipeDTO dto = new MostReviewedRecipeDTO(
-                    (Long) result[0],
-                    (String) result[1],
-                    (String) result[2],
-                    (Long) result[3]
+                    (Long) result[0],   // recipeId
+                    (String) result[1], // title
+                    (String) result[2], // thumbnail
+                    (Long) result[3]    // totalReviews
             );
             dtoList.add(dto);
         }
         return dtoList;
     }
+
 
     //for chef homepage analytics
     @Transactional(readOnly = true)
@@ -376,5 +379,36 @@ public class RecipeService {
                 .orElse(0.0);
 
         return new ChefAnalyticsDTO(totalRecipes, avgReviews, avgRating);
+    }
+
+    @Transactional(readOnly = true)
+    public UserAnalyticsDTO getUserAnalytics(Long userId) {
+
+        int totalRecipesTried = reviewRepository.countByUserId(userId);
+        int totalRatingsGiven = ratingRepository.countByUserId(userId);
+
+        // Get total favorites by loading the user and counting the Set size
+        int totalFavoritesAdded = userRepository.findById(userId)
+                .map(user -> user.getFavoriteRecipes().size())
+                .orElse(0);
+
+        return new UserAnalyticsDTO(totalRecipesTried, totalFavoritesAdded, totalRatingsGiven);
+    }
+
+
+
+    public List<MostReviewedRecipeDTO> getMostReviewedRecipes(int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+
+        // Fetch most-reviewed recipes without chef filter
+        List<Object[]> results = reviewRepository.findMostReviewedRecipes(pageable);
+
+        // Map results to DTOs
+        return results.stream().map(result -> new MostReviewedRecipeDTO(
+                (Long) result[0],   // recipeId
+                (String) result[1], // title
+                (String) result[2], // thumbnail
+                (Long) result[3]    // totalReviews
+        )).collect(Collectors.toList());
     }
 }

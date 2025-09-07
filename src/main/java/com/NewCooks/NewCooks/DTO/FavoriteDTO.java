@@ -5,9 +5,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
-public class ReviewDTO {
-    private Long id;
-    private String reviewText;
+@NoArgsConstructor
+public class FavoriteDTO {
+    private Long recipeId;
+    private boolean isFavorite;
 }

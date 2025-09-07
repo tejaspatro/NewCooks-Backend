@@ -23,7 +23,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/auth")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "${newcooks.frontend.url}")
 public class AuthController {
 
     private final ChefService chefService;
@@ -35,7 +35,7 @@ public class AuthController {
     @Autowired
     private EmailService emailService;
 
-    @Value("${app.base-url:http://localhost:8080}")
+    @Value("${app.base-url}")
     private String appBaseUrl;
 
     public AuthController(ChefService chefService,
@@ -52,11 +52,14 @@ public class AuthController {
         this.jwtUtil = jwtUtil;
     }
 
+    @Value("${app.base-url}")
+    private String base;
+
     @PostMapping("/chef/register")
     public ResponseEntity<?> registerChef(@RequestBody ChefSignupDTO dto,
                                           @RequestHeader(value = "origin", required = false) String origin) {
         try {
-            String base = appBaseUrl;
+            String base = this.base;
             if (!base.endsWith("/newcooks")) {
                 base = base.endsWith("/") ? base + "newcooks" : base + "/newcooks";
             }
@@ -97,7 +100,7 @@ public class AuthController {
     public ResponseEntity<?> registerUser(@RequestBody UserSignupDTO dto,
                                           @RequestHeader(value = "origin", required = false) String origin) {
         try {
-            String base = appBaseUrl;
+            String base = this.base;
             if (!base.endsWith("/newcooks")) {
                 base = base.endsWith("/") ? base + "newcooks" : base + "/newcooks";
             }

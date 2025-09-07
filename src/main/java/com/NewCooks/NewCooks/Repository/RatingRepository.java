@@ -22,6 +22,9 @@ public interface RatingRepository extends JpaRepository<RatingEntity, Long> {
     @Query("SELECT r.ratingValue, COUNT(r) FROM RatingEntity r WHERE r.recipe = :recipe GROUP BY r.ratingValue")
     List<Object[]> countRatingsByStars(@Param("recipe") Recipe recipe);
 
+    @Query("SELECT COUNT(r) FROM RatingEntity r WHERE r.user.id = :userId")
+    int countByUserId(@Param("userId") Long userId);
+
 //    @Query("SELECT r.recipeId as recipeId, r.title as title, r.thumbnail as thumbnail, " +
 //            "AVG(ra.ratingValue) as averageRating, COUNT(ra.id) as totalRatings " +
 //            "FROM Recipe r JOIN r.ratings ra " +

@@ -3,6 +3,9 @@ package com.NewCooks.NewCooks.Entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Entity
 @Table(name = "tbl_user")
 @Getter
@@ -37,4 +40,11 @@ public class User {
     @Column(name = "about_me", length = 1000)
     private String aboutMe;
 
+    @ManyToMany
+    @JoinTable(
+            name = "user_favorites",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "recipe_id")
+    )
+    private Set<Recipe> favoriteRecipes = new HashSet<>();
 }

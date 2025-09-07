@@ -139,4 +139,8 @@ public class ChefService {
     public Optional<Chef> findByEmail(String email) {
         return chefRepository.findByEmail(email);
     }
+
+    public Optional<Chef> findById(Long chefId) {
+        return chefRepository.findById(chefId);
+    }
 }

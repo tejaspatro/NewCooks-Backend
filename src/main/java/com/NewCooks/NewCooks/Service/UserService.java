@@ -1,14 +1,19 @@
 package com.NewCooks.NewCooks.Service;
 
+import com.NewCooks.NewCooks.DTO.FavoriteDTO;
+import com.NewCooks.NewCooks.DTO.RecipeSearchSuggestionDTO;
 import com.NewCooks.NewCooks.DTO.UserSignupDTO;
 import com.NewCooks.NewCooks.Entity.Chef;
+import com.NewCooks.NewCooks.Entity.Recipe;
 import com.NewCooks.NewCooks.Entity.User;
+import com.NewCooks.NewCooks.Repository.RecipeRepository;
 import com.NewCooks.NewCooks.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.MailException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -19,6 +24,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final RecipeRepository recipeRepository;
 
     public User registerUser(UserSignupDTO dto, String appBaseUrl) {
         if (userRepository.existsByEmail(dto.getEmail())) {
@@ -73,6 +79,51 @@ public class UserService {
         // Save updated user
         return userRepository.save(user);
     }
+
+    public List<RecipeSearchSuggestionDTO> searchRecipes(String keyword) {
+        return recipeRepository.searchRecipesByKeyword(keyword)
+                .stream()
+                .map(RecipeSearchSuggestionDTO::fromEntity)
+                .toList();
+    }
+
+    public FavoriteDTO toggleFavorite(String username, Long recipeId) {
+        User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .orElseThrow(() -> new RuntimeException("Recipe not found"));
+
+        boolean isFavorite;
+        if (user.getFavoriteRecipes().contains(recipe)) {
+            user.getFavoriteRecipes().remove(recipe);
+            isFavorite = false;
+        } else {
+            user.getFavoriteRecipes().add(recipe);
+            isFavorite = true;
+        }
+
+        userRepository.save(user);
+
+        return new FavoriteDTO(recipeId, isFavorite);
+    }
+
+    public List<RecipeSearchSuggestionDTO> getUserFavorites(String username) {
+        User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return user.getFavoriteRecipes()
+                .stream()
+                .map(recipe -> new RecipeSearchSuggestionDTO(
+                        recipe.getRecipeId(),
+                        recipe.getTitle(),
+                        recipe.getDescription() != null && recipe.getDescription().length() > 80
+                                ? recipe.getDescription().substring(0, 80) + "..."
+                                : recipe.getDescription()
+                ))
+                .toList();
+    }
+
 
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmail(email);
