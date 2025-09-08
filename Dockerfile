@@ -5,7 +5,7 @@ FROM openjdk:17-jdk-slim
 WORKDIR /app
 
 # Copy jar file (adjust the jar name if needed)
-COPY target/Backend-0.0.1-SNAPSHOT.jar NewCooks.jar
+COPY target/Backend-0.0.1-SNAPSHOT.jar app.jar
 
 # Expose port your app listens on (8080 by default)
 EXPOSE 8080
@@ -14,4 +14,4 @@ EXPOSE 8080
 ENV SPRING_PROFILES_ACTIVE=prod
 
 # Run the jar
-ENTRYPOINT ["java", "-jar", "NewCooks.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
