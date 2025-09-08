@@ -71,6 +71,7 @@ import com.NewCooks.NewCooks.Security.CustomUserDetailsService;
 import com.NewCooks.NewCooks.Security.JWTAuthenticationFilter;
 import com.NewCooks.NewCooks.Security.JWTUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -102,11 +103,14 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    @Value("${newcooks.frontend.url}")
+    private String frontendurl;
+
     // Strong CORS setup: allow only your frontend port!
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173")); // Only allow your React frontend
+        configuration.setAllowedOrigins(List.of(frontendurl)); // Only allow your React frontend
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(false); // If you use cookies, set true
