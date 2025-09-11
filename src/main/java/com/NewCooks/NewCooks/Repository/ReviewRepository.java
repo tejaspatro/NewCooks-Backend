@@ -19,7 +19,7 @@ public interface ReviewRepository extends JpaRepository<ReviewEntity, Long> {
 
     @Query("SELECT r.recipeId as recipeId, r.title as title, r.thumbnail as thumbnail, " +
             "COUNT(re.id) as totalReviews " +
-            "FROM Recipe r JOIN r.reviews re " +
+            "FROM Recipe r LEFT JOIN r.reviews re " +
             "GROUP BY r.recipeId, r.title, r.thumbnail " +
             "ORDER BY COUNT(re.id) DESC")
     List<Object[]> findMostReviewedRecipes(Pageable pageable);

@@ -60,9 +60,9 @@ public class AuthController {
                                           @RequestHeader(value = "origin", required = false) String origin) {
         try {
             String base = this.base;
-            if (!base.endsWith("/newcooks")) {
-                base = base.endsWith("/") ? base + "newcooks" : base + "/newcooks";
-            }
+//            if (!base.endsWith("/newcooks")) {
+//                base = base.endsWith("/") ? base + "newcooks" : base + "/newcooks";
+//            }
             Chef saved = chefService.registerChef(dto, base);
             saved.setPassword(null);
             return ResponseEntity.ok(saved);
@@ -101,9 +101,9 @@ public class AuthController {
                                           @RequestHeader(value = "origin", required = false) String origin) {
         try {
             String base = this.base;
-            if (!base.endsWith("/newcooks")) {
-                base = base.endsWith("/") ? base + "newcooks" : base + "/newcooks";
-            }
+//            if (!base.endsWith("/newcooks")) {
+//                base = base.endsWith("/") ? base + "newcooks" : base + "/newcooks";
+//            }
             User saved = userService.registerUser(dto, base);
             saved.setPassword(null);
             return ResponseEntity.ok(saved);

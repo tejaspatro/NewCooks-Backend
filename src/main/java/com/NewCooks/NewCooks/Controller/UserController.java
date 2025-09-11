@@ -11,12 +11,15 @@ import com.NewCooks.NewCooks.Repository.ReviewRepository;
 import com.NewCooks.NewCooks.Repository.UserRepository;
 import com.NewCooks.NewCooks.Service.RecipeService;
 import com.NewCooks.NewCooks.Service.UserService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
 import java.util.List;
@@ -34,6 +37,7 @@ public class UserController {
     private final RatingRepository ratingRepository;
     private final RecipeRepository recipeRepository;
     private final ReviewRepository reviewRepository;
+    private final ObjectMapper objectMapper;
 
     private boolean isAuthorized(Long userId) {
         String loggedInEmail = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -236,27 +240,34 @@ public class UserController {
         return ResponseEntity.ok(dto);
     }
 
-    @PutMapping("/userprofile")
-    public ResponseEntity<UserProfileDTO> updateUserProfile(@RequestBody UserProfileDTO dto, Principal principal) {
-        String email = principal.getName(); // get logged-in user's email
+    @PutMapping(value = "/userprofile", consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
+    public ResponseEntity<?> updateUserProfile(
+            @RequestPart("profile") String profileDtoString,
+            @RequestPart(value = "profilePictureFile", required = false) MultipartFile profilePictureFile,
+            Principal principal) {
 
-        User updatedUser = userService.updateUserProfile(
-                email,
-                dto.getName(),
-                dto.getProfilePicture(),
-                dto.getAboutMe()
-        );
+        try {
+            UserProfileDTO dto = objectMapper.readValue(profileDtoString, UserProfileDTO.class);
+            String email = principal.getName();
 
-        UserProfileDTO responseDTO = new UserProfileDTO(
-                updatedUser.getUserId(),
-                updatedUser.getName(),
-                updatedUser.getEmail(),
-                updatedUser.getProfilePicture(),
-                updatedUser.getAboutMe()
-        );
+            User updatedUser = userService.updateUserProfile(email, dto, profilePictureFile);
 
-        return ResponseEntity.ok(responseDTO);
+            UserProfileDTO responseDTO = new UserProfileDTO(
+                    updatedUser.getUserId(),
+                    updatedUser.getName(),
+                    updatedUser.getEmail(),
+                    updatedUser.getProfilePicture(),
+                    updatedUser.getAboutMe()
+            );
+
+            return ResponseEntity.ok(responseDTO);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Error processing profile update: " + e.getMessage());
+        }
     }
+
 
     @GetMapping("/recipes/search")
     public ResponseEntity<List<RecipeSearchSuggestionDTO>> searchUserRecipes(
@@ -276,11 +287,12 @@ public class UserController {
     }
 
     @GetMapping("/favourites")
-    public ResponseEntity<List<RecipeSearchSuggestionDTO>> getFavorites(Principal principal) {
+    public ResponseEntity<List<RecipeResponseDTO>> getFavorites(Principal principal) {
         String username = principal.getName();
-        List<RecipeSearchSuggestionDTO> favorites = userService.getUserFavorites(username);
+        List<RecipeResponseDTO> favorites = userService.getUserFavorites(username);
         return ResponseEntity.ok(favorites);
     }
+
 
     @GetMapping("/analytics")
     public ResponseEntity<UserAnalyticsDTO> getUserAnalytics(Principal principal) {

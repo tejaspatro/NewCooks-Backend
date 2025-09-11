@@ -1,19 +1,22 @@
 package com.NewCooks.NewCooks.Service;
 
-import com.NewCooks.NewCooks.DTO.FavoriteDTO;
-import com.NewCooks.NewCooks.DTO.RecipeSearchSuggestionDTO;
-import com.NewCooks.NewCooks.DTO.UserSignupDTO;
+import com.NewCooks.NewCooks.DTO.*;
 import com.NewCooks.NewCooks.Entity.Chef;
 import com.NewCooks.NewCooks.Entity.Recipe;
 import com.NewCooks.NewCooks.Entity.User;
 import com.NewCooks.NewCooks.Repository.RecipeRepository;
 import com.NewCooks.NewCooks.Repository.UserRepository;
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.MailException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,6 +28,9 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final RecipeRepository recipeRepository;
+    private final Cloudinary cloudinary;
+    private final CloudinaryService cloudinaryService;
+    private final RecipeService recipeService;
 
     public User registerUser(UserSignupDTO dto, String appBaseUrl) {
         if (userRepository.existsByEmail(dto.getEmail())) {
@@ -60,25 +66,50 @@ public class UserService {
         return true;
     }
 
-    public User updateUserProfile(String email, String name, String profilePicture, String aboutMe) {
-        // Find the user by email
+    public User updateUserProfile(String email, UserProfileDTO dto, MultipartFile profilePictureFile) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Update only the fields we want
-        if (name != null) {
-            user.setName(name);
+        // Update basic fields
+        user.setName(dto.getName());
+        user.setAboutMe(dto.getAboutMe());
+
+        // Handle profile picture update
+        // Case 1: A new file is uploaded
+        if (profilePictureFile != null && !profilePictureFile.isEmpty()) {
+            // Delete old picture from Cloudinary if it exists
+            if (user.getProfilePicture() != null && !user.getProfilePicture().isEmpty()) {
+                String publicId = cloudinaryService.extractPublicId(user.getProfilePicture());
+                cloudinaryService.deleteImageFromCloud(publicId);
+            }
+            // Upload new picture and set URL
+            String newProfilePictureUrl = uploadFileToCloudinary(profilePictureFile);
+            user.setProfilePicture(newProfilePictureUrl);
         }
-        if (profilePicture != null) {
-            user.setProfilePicture(profilePicture);
-        }
-        if (aboutMe != null) {
-            user.setAboutMe(aboutMe);
+        // Case 2: User removed picture without uploading a new one
+        else if (dto.getProfilePicture() == null || dto.getProfilePicture().isEmpty()) {
+            if (user.getProfilePicture() != null && !user.getProfilePicture().isEmpty()) {
+                String publicId = cloudinaryService.extractPublicId(user.getProfilePicture());
+                cloudinaryService.deleteImageFromCloud(publicId);
+                user.setProfilePicture(null);
+            }
         }
 
-        // Save updated user
         return userRepository.save(user);
     }
+
+    private String uploadFileToCloudinary(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return null;
+        }
+        try {
+            Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
+            return (String) uploadResult.get("secure_url");
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to upload file to Cloudinary", e);
+        }
+    }
+
 
     public List<RecipeSearchSuggestionDTO> searchRecipes(String keyword) {
         return recipeRepository.searchRecipesByKeyword(keyword)
@@ -108,21 +139,16 @@ public class UserService {
         return new FavoriteDTO(recipeId, isFavorite);
     }
 
-    public List<RecipeSearchSuggestionDTO> getUserFavorites(String username) {
+    public List<RecipeResponseDTO> getUserFavorites(String username) {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         return user.getFavoriteRecipes()
                 .stream()
-                .map(recipe -> new RecipeSearchSuggestionDTO(
-                        recipe.getRecipeId(),
-                        recipe.getTitle(),
-                        recipe.getDescription() != null && recipe.getDescription().length() > 80
-                                ? recipe.getDescription().substring(0, 80) + "..."
-                                : recipe.getDescription()
-                ))
+                .map(recipe -> recipeService.toRecipeResponseDTO(recipe)) // reuse existing mapping
                 .toList();
     }
+
 
 
     public Optional<User> findByEmail(String email) {

@@ -110,10 +110,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(frontendurl)); // Only allow your React frontend
+        configuration.setAllowedOriginPatterns(List.of(frontendurl,"https://newcooks.netlify.app/"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(false); // If you use cookies, set true
+        configuration.setAllowCredentials(true);  // cookies, auth headers from frontend
+
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
@@ -128,7 +129,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // enable above CORS
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**", "/activate/**", "/h2-console/**", "/test", "/error", "/user/recipes", "/recipes/rating/**").permitAll()
+                        .requestMatchers("/auth/**", "/activate/**", "/h2-console/**", "/test", "/error", "/user/recipes", "/recipes/rating/**", "/recipes/most-reviewed/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
