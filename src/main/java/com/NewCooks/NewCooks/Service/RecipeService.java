@@ -220,7 +220,7 @@ public class RecipeService {
 
 
 
-    // ===== Add or Update Rating =====
+    //Add or Update Rating
     @Transactional
     public RatingResponseDTO addOrUpdateRating(Long recipeId, Long userId, int stars) {
         if (stars < 1 || stars > 5) {
@@ -267,7 +267,7 @@ public class RecipeService {
     }
 
 
-    // ===== Get average rating =====
+    // Get average rating
     public double getAverageRating(Long recipeId) {
         Recipe recipe = recipeRepository.findById(recipeId)
                 .orElseThrow(() -> new RuntimeException("Recipe not found"));
@@ -287,7 +287,7 @@ public class RecipeService {
         ratingRepository.delete(rating);
     }
 
-    // ===== Add or Update Review =====
+    //Add or Update Review
     @Transactional
     public ReviewResponseDTO addOrUpdateReview(Long recipeId, Long userId, String reviewText) {
         if (reviewText == null || reviewText.isBlank()) {
@@ -310,7 +310,7 @@ public class RecipeService {
         return ReviewResponseDTO.fromEntity(savedReview);
     }
 
-    // ===== Get all reviews for a recipe =====
+    //  Get all reviews for a recipe
     public List<ReviewResponseDTO> getReviewsForRecipe(Long recipeId) {
         List<ReviewEntity> reviews = reviewRepository.findByRecipe_RecipeId(recipeId);
         return reviews.stream()
@@ -319,7 +319,7 @@ public class RecipeService {
     }
 
 
-    // ===== Delete a review =====
+    //Delete a review
     public void deleteReview(Long userId, Long reviewId) {
         ReviewEntity review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new RuntimeException("Review not found"));
@@ -341,10 +341,10 @@ public class RecipeService {
         List<MostReviewedRecipeDTO> dtoList = new ArrayList<>();
         for (Object[] result : results) {
             MostReviewedRecipeDTO dto = new MostReviewedRecipeDTO(
-                    (Long) result[0],   // recipeId
-                    (String) result[1], // title
-                    (String) result[2], // thumbnail
-                    (Long) result[3]    // totalReviews
+                    (Long) result[0],
+                    (String) result[1],
+                    (String) result[2],
+                    (Long) result[3]
             );
             dtoList.add(dto);
         }
@@ -405,10 +405,10 @@ public class RecipeService {
 
         // Map results to DTOs
         return results.stream().map(result -> new MostReviewedRecipeDTO(
-                (Long) result[0],   // recipeId
-                (String) result[1], // title
-                (String) result[2], // thumbnail
-                (Long) result[3]    // totalReviews
+                (Long) result[0],
+                (String) result[1],
+                (String) result[2],
+                (Long) result[3]
         )).collect(Collectors.toList());
     }
 }
